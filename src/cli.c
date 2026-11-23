@@ -7,6 +7,7 @@
  * [COMMIT 2 - ARQUIVOS BINARIOS]    salvar em .bin e exportar .txt.
  * [COMMIT 3 - ORDENACAO]            ordenar acervo por codigo ou titulo.
  * [COMMIT 4 - BUSCA BINARIA]        busca binaria com garantia de ordenacao.
+ * [COMMIT 5 - HISTORICO]            historico de emprestimos por usuario.
  */
 #include <stdio.h>
 #include <string.h>
@@ -228,6 +229,31 @@ static void list_loans(Library *lib) {
     for (i = 0; i < lib->n_loans; i++) print_loan(lib, &lib->loans[i]);
 }
 
+/* [COMMIT 5 - HISTORICO] Todos os emprestimos de um usuario, abertos e
+ * devolvidos, na ordem em que aconteceram, com os totais no fim. */
+static void user_history(Library *lib) {
+    int reg;
+    size_t i;
+    unsigned long total = 0, open = 0;
+    const User *u;
+    if (!read_int("Matricula: ", &reg)) return;
+    if (!(u = lib_find_user(lib, reg))) {
+        printf("Usuario nao encontrado.\n");
+        return;
+    }
+    printf("Historico de %s (matricula %d, %s)\n", u->name, u->registration, u->course);
+    for (i = 0; i < lib->n_loans; i++) {
+        const Loan *l = &lib->loans[i];
+        if (l->user_reg != reg) continue;
+        if (total++ == 0) print_loan_header();
+        print_loan(lib, l);
+        if (!l->return_date) open++;
+    }
+    if (total == 0) printf("(nenhum emprestimo)\n");
+    printf("Total: %lu emprestimo(s), %lu em aberto, %lu devolvido(s).\n",
+           total, open, total - open);
+}
+
 /* ---------- Arquivos ---------- */
 
 /* [COMMIT 2] O binario e o formato principal; o texto fica como exportacao. */
@@ -265,6 +291,7 @@ static const MenuItem MENU[] = {
     {"Exportar dados para texto (.txt)", export_txt},       /* [COMMIT 2] */
     {"Ordenar acervo (Insertion/Selection Sort)", sort_books}, /* [COMMIT 3] */
     {"Busca binaria por codigo/titulo", binary_search_books}, /* [COMMIT 4] */
+    {"Historico de emprestimos do usuario", user_history},   /* [COMMIT 5] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 
