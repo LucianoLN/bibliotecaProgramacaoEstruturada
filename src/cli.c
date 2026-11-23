@@ -5,11 +5,13 @@
  * [COMMIT 1 - ALOCACAO DINAMICA]    menu em tabela; usuarios, emprestimos,
  *                                   devolucoes e buscas sobre a Library dinamica.
  * [COMMIT 2 - ARQUIVOS BINARIOS]    salvar em .bin e exportar .txt.
+ * [COMMIT 3 - ORDENACAO]            ordenar acervo por codigo ou titulo.
  */
 #include <stdio.h>
 #include <string.h>
 #include "cli.h"
 #include "persist.h"
+#include "sort.h"
 #include "util.h"
 
 #define LINE_LEN 256
@@ -105,6 +107,32 @@ static void search_books(Library *lib) {
         }
     }
     printf("%lu livro(s) encontrado(s).\n", found);
+}
+
+/* [COMMIT 3] Pergunta o criterio; NULL se a opcao for invalida. */
+static BookCmp read_criterion(void) {
+    int field;
+    if (!read_int("Campo (1 = codigo, 2 = titulo): ", &field)) return NULL;
+    if (field == 1) return book_cmp_id;
+    if (field == 2) return book_cmp_title;
+    printf("Campo invalido.\n");
+    return NULL;
+}
+
+/* [COMMIT 3] Ordena o proprio vetor do acervo (a ordem fica salva no .bin). */
+static void sort_books(Library *lib) {
+    int algo;
+    BookCmp cmp;
+    if (!read_int("Algoritmo (1 = Insertion Sort, 2 = Selection Sort): ", &algo)) return;
+    if (algo != 1 && algo != 2) {
+        printf("Algoritmo invalido.\n");
+        return;
+    }
+    if (!(cmp = read_criterion())) return;
+    if (algo == 1) sort_insertion(lib->books, lib->n_books, cmp);
+    else sort_selection(lib->books, lib->n_books, cmp);
+    printf("Acervo ordenado com %s.\n", algo == 1 ? "Insertion Sort" : "Selection Sort");
+    list_books(lib);
 }
 
 /* ---------- Usuarios ---------- */
@@ -206,6 +234,7 @@ static const MenuItem MENU[] = {
     {"Listar emprestimos", list_loans},
     {"Salvar dados (.bin)", save_now},
     {"Exportar dados para texto (.txt)", export_txt},       /* [COMMIT 2] */
+    {"Ordenar acervo (Insertion/Selection Sort)", sort_books}, /* [COMMIT 3] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 

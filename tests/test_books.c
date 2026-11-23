@@ -6,11 +6,13 @@
  * [COMMIT 1 - ALOCACAO DINAMICA]    crescimento dos vetores, emprestimos,
  *                                   texto ida e volta e formato da Parte 1.
  * [COMMIT 2 - ARQUIVOS BINARIOS]    binario ida e volta e arquivo invalido.
+ * [COMMIT 3 - ORDENACAO]            Insertion e Selection Sort.
  */
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include "persist.h"
+#include "sort.h"
 #include "util.h"
 
 #define TMP "tests/tmp_"
@@ -115,7 +117,30 @@ static void test_binary_file(void) {
     lib_free(&back);
 }
 
+/* [COMMIT 3] Os dois algoritmos chegam na mesma ordem, inclusive com
+ * titulos repetidos, vetor vazio e vetor de 1 elemento. */
+static void test_sorting(void) {
+    static const char *titles[] = {"pedra", "Ana", "zebra", "ana", "Mar", "pedra", "b"};
+    void (*algos[2])(Book *, size_t, BookCmp) = {sort_insertion, sort_selection};
+    Book a[7], b[7];
+    size_t i;
+    int k;
+    for (i = 0; i < 7; i++) book_init(&a[i], (int)(70 - i * 7 % 10), titles[i], "x", 2000, 1);
+    for (k = 0; k < 2; k++) {
+        memcpy(b, a, sizeof a);
+        algos[k](b, 7, book_cmp_title);
+        assert(sort_is_sorted(b, 7, book_cmp_title));
+        assert(str_icmp(b[0].title, "ana") == 0 && strcmp(b[6].title, "zebra") == 0);
+        algos[k](b, 7, book_cmp_id);
+        assert(sort_is_sorted(b, 7, book_cmp_id));
+        algos[k](b, 0, book_cmp_id);
+        algos[k](b, 1, book_cmp_id);
+    }
+    assert(!sort_is_sorted(a, 7, book_cmp_title));
+}
+
 int main(void) {
+    test_sorting();
     test_dynamic_arrays();
     test_loans();
     test_text_files();

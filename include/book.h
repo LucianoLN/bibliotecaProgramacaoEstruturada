@@ -3,6 +3,7 @@
  *
  * [PARTE 1]                         estrutura Book e book_init.
  * [COMMIT 1 - ALOCACAO DINAMICA]    campo quantity (exemplares disponiveis).
+ * [COMMIT 3 - ORDENACAO]            comparadores por codigo e por titulo.
  */
 #ifndef BOOK_H
 #define BOOK_H
@@ -21,5 +22,10 @@ typedef struct Book {
 /* [PARTE 1] Preenche um Book, truncando textos longos com seguranca. */
 void book_init(Book *b, int id, const char *title, const char *author,
                int year, int quantity);
+
+/* [COMMIT 3] Criterios de ordenacao (<0, 0, >0 como strcmp). */
+int book_cmp_id(const Book *a, const Book *b);
+/* Titulo sem diferenciar maiusculas; empate desempata pelo codigo. */
+int book_cmp_title(const Book *a, const Book *b);
 
 #endif /* BOOK_H */
