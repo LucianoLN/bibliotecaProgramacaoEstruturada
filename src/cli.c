@@ -9,12 +9,14 @@
  * [COMMIT 4 - BUSCA BINARIA]        busca binaria com garantia de ordenacao.
  * [COMMIT 5 - HISTORICO]            historico de emprestimos por usuario.
  * [COMMIT 6 - ATRASOS E MULTA]      datas informadas, prazo, multa e atrasos.
+ * [COMMIT 7 - RELATORIO DE DESEMPENHO] opcao que gera o relatorio.
  */
 #include <stdio.h>
 #include <string.h>
 #include "cli.h"
 #include "fine.h"
 #include "persist.h"
+#include "report.h"
 #include "search.h"
 #include "sort.h"
 #include "util.h"
@@ -327,6 +329,14 @@ static void user_history(Library *lib) {
            total, open, total - open, fines_txt);
 }
 
+/* [COMMIT 7 - RELATORIO DE DESEMPENHO] */
+static void performance_report(Library *lib) {
+    (void)lib;                      /* o benchmark usa dados proprios, nao o acervo */
+    printf("Gerando relatorio (leva alguns segundos)...\n");
+    if (report_run(REPORT_FILE) == 0) printf("\nRelatorio salvo em %s.\n", REPORT_FILE);
+    else printf("Erro ao gerar o relatorio (memoria ou arquivo).\n");
+}
+
 /* ---------- Arquivos ---------- */
 
 /* [COMMIT 2] O binario e o formato principal; o texto fica como exportacao. */
@@ -366,6 +376,7 @@ static const MenuItem MENU[] = {
     {"Busca binaria por codigo/titulo", binary_search_books}, /* [COMMIT 4] */
     {"Historico de emprestimos do usuario", user_history},   /* [COMMIT 5] */
     {"Emprestimos em atraso e multas", list_overdue},        /* [COMMIT 6] */
+    {"Relatorio de desempenho", performance_report},         /* [COMMIT 7] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 

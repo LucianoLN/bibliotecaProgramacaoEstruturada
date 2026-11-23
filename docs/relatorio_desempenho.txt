@@ -1,0 +1,29 @@
+RELATORIO DE DESEMPENHO - SGB (23/11/2026)
+Dados sinteticos: codigos embaralhados e titulos aleatorios de 10 letras.
+Tempo medido com clock() de <time.h> (CLOCKS_PER_SEC = 1000).
+
+1) ORDENACAO - tempo total (ms)
+      N |  Insertion/cod  Selection/cod |  Insertion/tit  Selection/tit
+   1000 |           4.00           1.00 |           5.00           5.00
+   2000 |          15.00           6.00 |          20.00          20.00
+   5000 |          99.00          39.00 |         122.00         124.00
+  10000 |         388.00         167.00 |         514.00         494.00
+
+2) BUSCA POR CODIGO - tempo medio por busca (us), 1000 chaves aleatorias
+      N |   Sequencial      Binaria |  Ganho binaria
+   1000 |        0.478        0.024 |            20x
+   2000 |        1.010        0.037 |            28x
+   5000 |        2.564        0.058 |            44x
+  10000 |        6.800        0.079 |            86x
+
+3) ANALISE (calculada a partir das medicoes acima)
+- Por codigo com N = 10000: Selection foi 2.3x mais rapido que Insertion.
+- Por titulo com N = 10000: Selection foi 1.0x mais rapido que Insertion.
+- De N = 5000 para N = 10000 (2x mais dados) o Selection Sort por codigo
+  ficou 4.3x mais lento: crescimento quadratico, O(n^2).
+- Insertion Sort desloca structs inteiras (268 bytes cada); Selection Sort
+  compara mais, porem troca no maximo n-1 vezes.
+- Busca: a sequencial e O(n) e cresce junto com N; a binaria e O(log n) e
+  quase nao muda. Com N = 10000 a binaria foi 86x mais rapida, mas so
+  funciona com o vetor ordenado: a ordenacao (O(n^2) aqui) e paga uma vez
+  e compensa quando ha muitas buscas sobre o mesmo acervo.
