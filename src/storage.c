@@ -93,6 +93,7 @@ int lib_add_user(Library *lib, int registration, const char *name, const char *c
     User u;
     if (registration <= 0 || !valid_text(name) || !valid_text(course)) return LIB_ERR_INVALID;
     if (lib_find_user(lib, registration)) return LIB_ERR_DUPLICATE;
+    memset(&u, 0, sizeof u);
     u.registration = registration;
     str_copy(u.name, name, sizeof u.name);
     str_copy(u.course, course, sizeof u.course);
@@ -106,6 +107,7 @@ int lib_lend(Library *lib, int registration, int book_id, time_t when) {
     if (!lib_find_user(lib, registration)) return LIB_ERR_NO_USER;
     if (!b) return LIB_ERR_NO_BOOK;
     if (b->quantity <= 0) return LIB_ERR_UNAVAILABLE;
+    memset(&l, 0, sizeof l);
     l.id = lib->next_loan_id;
     l.book_id = book_id;
     l.user_reg = registration;

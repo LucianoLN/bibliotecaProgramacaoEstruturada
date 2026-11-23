@@ -4,6 +4,7 @@
  * [PARTE 1]                         texto "id|ano|titulo|autor".
  * [COMMIT 1 - ALOCACAO DINAMICA]    texto para os tres cadastros, carregado num
  *                                   Library temporario (falha nao apaga nada).
+ * [COMMIT 2 - ARQUIVOS BINARIOS]    arquivo binario com fwrite/fread.
  */
 #include <stdio.h>
 #include <string.h>
@@ -142,6 +143,84 @@ int persist_load_txt(Library *lib, const char *prefix) {
     if (rc == PERSIST_ERROR || !found) {
         lib_free(&tmp);
         return rc == PERSIST_ERROR ? PERSIST_ERROR : PERSIST_NO_FILE;
+    }
+    lib_free(lib);
+    *lib = tmp;
+    return (int)(lib->n_books + lib->n_users + lib->n_loans);
+}
+
+/* ---------- [COMMIT 2 - ARQUIVOS BINARIOS] ---------- */
+
+/* Layout: "SGB2" | 3 x uint32 (qtd. livros, usuarios, emprestimos)
+ *         | Book[] | User[] | Loan[]  (structs gravadas como estao na memoria,
+ *         entao o arquivo vale para o mesmo sistema/compilador que o gerou). */
+static const char BIN_MAGIC[4] = {'S', 'G', 'B', '2'};
+
+static int write_block(const void *p, size_t size, size_t n, FILE *f) {
+    return n == 0 || fwrite(p, size, n, f) == n;
+}
+
+int persist_save_bin(const Library *lib, const char *path) {
+    char tmp[512];
+    unsigned int counts[3];
+    FILE *f;
+    int ok;
+
+    counts[0] = (unsigned int)lib->n_books;
+    counts[1] = (unsigned int)lib->n_users;
+    counts[2] = (unsigned int)lib->n_loans;
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    f = fopen(tmp, "wb");
+    if (!f) return PERSIST_ERROR;
+    ok = write_block(BIN_MAGIC, 1, sizeof BIN_MAGIC, f) &&
+         write_block(counts, sizeof counts[0], 3, f) &&
+         write_block(lib->books, sizeof(Book), lib->n_books, f) &&
+         write_block(lib->users, sizeof(User), lib->n_users, f) &&
+         write_block(lib->loans, sizeof(Loan), lib->n_loans, f);
+    if (fclose(f) != 0) ok = 0;
+    if (!ok) {
+        remove(tmp);
+        return PERSIST_ERROR;
+    }
+    remove(path);                       /* no Windows, rename falha se o destino existe */
+    return rename(tmp, path) == 0 ? 0 : PERSIST_ERROR;
+}
+
+int persist_load_bin(Library *lib, const char *path) {
+    char magic[sizeof BIN_MAGIC];
+    unsigned int counts[3], i;
+    Library tmp;
+    int ok;
+    FILE *f = fopen(path, "rb");
+    if (!f) return PERSIST_NO_FILE;
+
+    lib_init(&tmp);
+    ok = fread(magic, 1, sizeof magic, f) == sizeof magic &&
+         memcmp(magic, BIN_MAGIC, sizeof magic) == 0 &&
+         fread(counts, sizeof counts[0], 3, f) == 3;
+    /* Le registro a registro e reaproveita lib_push_*, que ja cuida do realloc
+     * e dos proximos codigos. Os '\0' finais sao forcados: o arquivo pode estar
+     * corrompido e um texto sem terminador estouraria o printf. */
+    for (i = 0; ok && i < counts[0]; i++) {
+        Book b;
+        ok = fread(&b, sizeof b, 1, f) == 1;
+        b.title[BOOK_TITLE_LEN - 1] = b.author[BOOK_AUTHOR_LEN - 1] = '\0';
+        ok = ok && lib_push_book(&tmp, &b) == 0;
+    }
+    for (i = 0; ok && i < counts[1]; i++) {
+        User u;
+        ok = fread(&u, sizeof u, 1, f) == 1;
+        u.name[USER_NAME_LEN - 1] = u.course[USER_COURSE_LEN - 1] = '\0';
+        ok = ok && lib_push_user(&tmp, &u) == 0;
+    }
+    for (i = 0; ok && i < counts[2]; i++) {
+        Loan l;
+        ok = fread(&l, sizeof l, 1, f) == 1 && lib_push_loan(&tmp, &l) == 0;
+    }
+    fclose(f);
+    if (!ok) {
+        lib_free(&tmp);
+        return PERSIST_ERROR;
     }
     lib_free(lib);
     *lib = tmp;

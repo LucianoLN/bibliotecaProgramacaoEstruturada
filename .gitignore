@@ -15,3 +15,5 @@ tests/tmp_*
 livros.txt
 usuarios.txt
 emprestimos.txt
+biblioteca.bin
+biblioteca.bin.tmp

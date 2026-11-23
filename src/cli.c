@@ -4,6 +4,7 @@
  * [PARTE 1]                         laco do menu, cadastro e listagem de livros.
  * [COMMIT 1 - ALOCACAO DINAMICA]    menu em tabela; usuarios, emprestimos,
  *                                   devolucoes e buscas sobre a Library dinamica.
+ * [COMMIT 2 - ARQUIVOS BINARIOS]    salvar em .bin e exportar .txt.
  */
 #include <stdio.h>
 #include <string.h>
@@ -172,9 +173,17 @@ static void list_loans(Library *lib) {
 
 /* ---------- Arquivos ---------- */
 
+/* [COMMIT 2] O binario e o formato principal; o texto fica como exportacao. */
 static void save_now(Library *lib) {
-    if (persist_save_txt(lib, "") == 0) printf("Dados salvos.\n");
+    if (persist_save_bin(lib, BIN_FILE) == 0) printf("Dados salvos em %s.\n", BIN_FILE);
     else printf("Erro ao salvar os dados.\n");
+}
+
+static void export_txt(Library *lib) {
+    if (persist_save_txt(lib, "") == 0)
+        printf("Exportado para livros.txt, usuarios.txt e emprestimos.txt.\n");
+    else
+        printf("Erro ao exportar.\n");
 }
 
 /* ---------- Menu ---------- */
@@ -195,7 +204,8 @@ static const MenuItem MENU[] = {
     {"Registrar emprestimo", lend_book},
     {"Registrar devolucao", return_book},
     {"Listar emprestimos", list_loans},
-    {"Salvar dados", save_now},
+    {"Salvar dados (.bin)", save_now},
+    {"Exportar dados para texto (.txt)", export_txt},       /* [COMMIT 2] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 

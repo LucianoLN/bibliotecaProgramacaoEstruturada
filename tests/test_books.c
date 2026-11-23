@@ -5,6 +5,7 @@
  * [PARTE 1]                         cadastro e persistencia de livros.
  * [COMMIT 1 - ALOCACAO DINAMICA]    crescimento dos vetores, emprestimos,
  *                                   texto ida e volta e formato da Parte 1.
+ * [COMMIT 2 - ARQUIVOS BINARIOS]    binario ida e volta e arquivo invalido.
  */
 #include <assert.h>
 #include <stdio.h>
@@ -83,10 +84,42 @@ static void test_text_files(void) {
     lib_free(&back);
 }
 
+/* [COMMIT 2] Binario: ida e volta identica; arquivo estranho e recusado. */
+static void test_binary_file(void) {
+    const char *path = TMP "dados.bin";
+    Library lib, back;
+    FILE *f;
+    int i;
+    lib_init(&lib);
+    lib_init(&back);
+    for (i = 0; i < 20; i++) lib_add_book(&lib, "Livro", "Autor", 2000 + i, i);
+    lib_add_user(&lib, 10, "Ana", "CC");
+    lib_lend(&lib, 10, 5, date_today());
+
+    assert(persist_save_bin(&lib, path) == 0);
+    assert(persist_load_bin(&back, path) == 22);
+    assert(back.n_books == 20 && back.n_users == 1 && back.n_loans == 1);
+    assert(memcmp(back.books, lib.books, 20 * sizeof(Book)) == 0);
+    assert(back.next_book_id == 21 && back.next_loan_id == 2);
+
+    f = fopen(path, "wb");
+    assert(f);
+    fputs("lixo", f);
+    fclose(f);
+    assert(persist_load_bin(&back, path) == PERSIST_ERROR);
+    assert(back.n_books == 20);             /* falha nao apaga o que havia */
+
+    remove(path);
+    assert(persist_load_bin(&back, path) == PERSIST_NO_FILE);
+    lib_free(&lib);
+    lib_free(&back);
+}
+
 int main(void) {
     test_dynamic_arrays();
     test_loans();
     test_text_files();
+    test_binary_file();
     printf("Todos os testes passaram.\n");
     return 0;
 }
