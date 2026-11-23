@@ -2,6 +2,7 @@
  * util.h - Auxiliares de texto, numeros e datas (somente libc).
  *
  * [COMMIT 1 - ALOCACAO DINAMICA]    textos, inteiros e datas.
+ * [COMMIT 6 - ATRASOS E MULTA]      leitura de datas e contas com dias.
  */
 #ifndef UTIL_H
 #define UTIL_H
@@ -32,5 +33,12 @@ time_t date_from_ymd(int ymd);
 
 /* Escreve a data como dd/mm/aaaa; t == 0 vira "-". */
 void date_format(time_t t, char *buf, size_t size);
+
+/* [COMMIT 6] Le "dd/mm/aaaa"; devolve 1 se a data existe, 0 se invalida. */
+int date_parse(const char *s, time_t *out);
+/* [COMMIT 6] Soma dias a uma data. */
+time_t date_add_days(time_t t, int days);
+/* [COMMIT 6] Dias inteiros de `from` ate `to` (negativo se to vem antes). */
+int date_diff_days(time_t from, time_t to);
 
 #endif /* UTIL_H */

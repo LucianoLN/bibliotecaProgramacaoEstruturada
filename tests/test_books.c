@@ -8,10 +8,12 @@
  * [COMMIT 2 - ARQUIVOS BINARIOS]    binario ida e volta e arquivo invalido.
  * [COMMIT 3 - ORDENACAO]            Insertion e Selection Sort.
  * [COMMIT 4 - BUSCA BINARIA]        binaria confere com a sequencial.
+ * [COMMIT 6 - ATRASOS E MULTA]      prazo, atraso, multa e datas.
  */
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "fine.h"
 #include "persist.h"
 #include "search.h"
 #include "sort.h"
@@ -160,7 +162,31 @@ static void test_binary_search(void) {
     }
 }
 
+/* [COMMIT 6] Prazo de 7 dias, multa por dia; virada de mes e de ano. */
+static void test_fines(void) {
+    Loan l;
+    time_t t;
+    memset(&l, 0, sizeof l);
+    l.loan_date = date_make(25, 2, 2026);
+    assert(date_diff_days(l.loan_date, loan_due_date(&l)) == LOAN_DAYS);
+    assert(loan_due_date(&l) == date_make(4, 3, 2026));
+    assert(loan_days_late(&l, date_make(4, 3, 2026)) == 0);      /* ultimo dia do prazo */
+    assert(loan_days_late(&l, date_make(5, 3, 2026)) == 1);
+    assert(loan_fine_cents(&l, date_make(14, 3, 2026)) == 10 * FINE_CENTS_PER_DAY);
+    l.return_date = date_make(6, 3, 2026);                       /* devolvido: multa congela */
+    assert(loan_days_late(&l, date_make(31, 12, 2026)) == 2);
+    l.loan_date = date_make(28, 12, 2026);
+    l.return_date = date_make(10, 1, 2027);
+    assert(loan_days_late(&l, 0) == 6);
+
+    assert(date_parse("05/03/2026", &t) && t == date_make(5, 3, 2026));
+    assert(date_parse("5/3/2026 ", &t));
+    assert(!date_parse("31/02/2026", &t) && !date_parse("5/3", &t));
+    assert(!date_parse("01/01/2026x", &t) && !date_parse("", &t));
+}
+
 int main(void) {
+    test_fines();
     test_sorting();
     test_binary_search();
     test_dynamic_arrays();

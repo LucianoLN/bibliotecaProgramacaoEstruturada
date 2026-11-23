@@ -8,10 +8,12 @@
  * [COMMIT 3 - ORDENACAO]            ordenar acervo por codigo ou titulo.
  * [COMMIT 4 - BUSCA BINARIA]        busca binaria com garantia de ordenacao.
  * [COMMIT 5 - HISTORICO]            historico de emprestimos por usuario.
+ * [COMMIT 6 - ATRASOS E MULTA]      datas informadas, prazo, multa e atrasos.
  */
 #include <stdio.h>
 #include <string.h>
 #include "cli.h"
+#include "fine.h"
 #include "persist.h"
 #include "search.h"
 #include "sort.h"
@@ -45,6 +47,20 @@ static int read_int(const char *prompt, int *out) {
     return 0;
 }
 
+/* [COMMIT 6] Le dd/mm/aaaa; Enter vazio = hoje (permite registrar datas
+ * passadas e simular atrasos). */
+static int read_date(const char *prompt, time_t *out) {
+    char buf[32];
+    if (!read_line(prompt, buf, sizeof buf)) return 0;
+    if (buf[0] == '\0') {
+        *out = date_today();
+        return 1;
+    }
+    if (date_parse(buf, out)) return 1;
+    printf("Data invalida (use dd/mm/aaaa).\n");
+    return 0;
+}
+
 static void report_error(int rc) {
     printf("Erro: %s.\n", lib_strerror(rc));
 }
@@ -60,17 +76,21 @@ static void print_book(const Book *b) {
 }
 
 static void print_loan_header(void) {
-    printf("%-5s %-9s %-6s %-30s %-10s %-10s\n",
-           "Id", "Matric.", "Livro", "Titulo", "Emprestimo", "Devolucao");
+    printf("%-4s %-8s %-5s %-22s %-10s %-10s %-10s %10s\n", "Id", "Matric.", "Livro",
+           "Titulo", "Emprestimo", "Prazo", "Devolucao", "Multa");
 }
 
+/* [COMMIT 6] Mostra tambem o prazo e a multa (acumulada ate hoje se aberto). */
 static void print_loan(const Library *lib, const Loan *l) {
     const Book *b = lib_find_book(lib, l->book_id);
-    char loaned[16], returned[16];
+    char loaned[16], due[16], returned[16], fine[24];
     date_format(l->loan_date, loaned, sizeof loaned);
+    date_format(loan_due_date(l), due, sizeof due);
     date_format(l->return_date, returned, sizeof returned);
-    printf("%-5d %-9d %-6d %-30.30s %-10s %-10s\n", l->id, l->user_reg, l->book_id,
-           b ? b->title : "?", loaned, l->return_date ? returned : "em aberto");
+    fine_format(loan_fine_cents(l, date_today()), fine, sizeof fine);
+    printf("%-4d %-8d %-5d %-22.22s %-10s %-10s %-10s %10s\n", l->id, l->user_reg,
+           l->book_id, b ? b->title : "?", loaned, due,
+           l->return_date ? returned : "em aberto", fine);
 }
 
 /* ---------- Livros ---------- */
@@ -205,18 +225,67 @@ static void find_user(Library *lib) {
 
 static void lend_book(Library *lib) {
     int reg, book_id, rc;
-    if (!read_int("Matricula: ", &reg) || !read_int("Codigo do livro: ", &book_id)) return;
-    rc = lib_lend(lib, reg, book_id, date_today());
-    if (rc < 0) report_error(rc);
-    else printf("Emprestimo %d registrado.\n", rc);
+    time_t when;
+    char due[16];
+    if (!read_int("Matricula: ", &reg) || !read_int("Codigo do livro: ", &book_id) ||
+        !read_date("Data do emprestimo (dd/mm/aaaa, Enter = hoje): ", &when))
+        return;
+    rc = lib_lend(lib, reg, book_id, when);
+    if (rc < 0) {
+        report_error(rc);
+        return;
+    }
+    date_format(loan_due_date(&lib->loans[lib->n_loans - 1]), due, sizeof due);
+    printf("Emprestimo %d registrado. Devolver ate %s.\n", rc, due);
 }
 
+/* [COMMIT 6] Na devolucao calcula o atraso e a multa. */
 static void return_book(Library *lib) {
-    int reg, book_id, rc;
-    if (!read_int("Matricula: ", &reg) || !read_int("Codigo do livro: ", &book_id)) return;
-    rc = lib_return(lib, reg, book_id, date_today());
-    if (rc < 0) report_error(rc);
-    else printf("Devolucao registrada.\n");
+    int reg, book_id, rc, late;
+    time_t when;
+    char fine[24];
+    if (!read_int("Matricula: ", &reg) || !read_int("Codigo do livro: ", &book_id) ||
+        !read_date("Data da devolucao (dd/mm/aaaa, Enter = hoje): ", &when))
+        return;
+    rc = lib_return(lib, reg, book_id, when);
+    if (rc == LIB_ERR_INVALID) {
+        printf("Erro: a devolucao nao pode ser antes da data do emprestimo.\n");
+        return;
+    }
+    if (rc < 0) {
+        report_error(rc);
+        return;
+    }
+    late = loan_days_late(&lib->loans[rc], when);
+    if (late == 0) {
+        printf("Devolucao registrada dentro do prazo.\n");
+        return;
+    }
+    fine_format(loan_fine_cents(&lib->loans[rc], when), fine, sizeof fine);
+    printf("Devolucao registrada com %d dia(s) de atraso. Multa: %s.\n", late, fine);
+}
+
+/* [COMMIT 6] Emprestimos em aberto com prazo vencido e a multa ate hoje. */
+static void list_overdue(Library *lib) {
+    time_t today = date_today();
+    size_t i;
+    unsigned long count = 0;
+    long total = 0;
+    char fine[24];
+    for (i = 0; i < lib->n_loans; i++) {
+        const Loan *l = &lib->loans[i];
+        if (l->return_date || loan_days_late(l, today) == 0) continue;
+        if (count++ == 0) print_loan_header();
+        print_loan(lib, l);
+        total += loan_fine_cents(l, today);
+    }
+    if (count == 0) {
+        printf("Nenhum emprestimo em atraso.\n");
+        return;
+    }
+    fine_format(total, fine, sizeof fine);
+    printf("%lu emprestimo(s) em atraso. Multa acumulada: %s "
+           "(prazo de %d dias, R$ 1,00 por dia de atraso).\n", count, fine, LOAN_DAYS);
 }
 
 static void list_loans(Library *lib) {
@@ -235,6 +304,8 @@ static void user_history(Library *lib) {
     int reg;
     size_t i;
     unsigned long total = 0, open = 0;
+    long fines = 0;                 /* [COMMIT 6] */
+    char fines_txt[24];
     const User *u;
     if (!read_int("Matricula: ", &reg)) return;
     if (!(u = lib_find_user(lib, reg))) {
@@ -248,10 +319,12 @@ static void user_history(Library *lib) {
         if (total++ == 0) print_loan_header();
         print_loan(lib, l);
         if (!l->return_date) open++;
+        fines += loan_fine_cents(l, date_today());
     }
     if (total == 0) printf("(nenhum emprestimo)\n");
-    printf("Total: %lu emprestimo(s), %lu em aberto, %lu devolvido(s).\n",
-           total, open, total - open);
+    fine_format(fines, fines_txt, sizeof fines_txt);
+    printf("Total: %lu emprestimo(s), %lu em aberto, %lu devolvido(s). Multas: %s.\n",
+           total, open, total - open, fines_txt);
 }
 
 /* ---------- Arquivos ---------- */
@@ -292,6 +365,7 @@ static const MenuItem MENU[] = {
     {"Ordenar acervo (Insertion/Selection Sort)", sort_books}, /* [COMMIT 3] */
     {"Busca binaria por codigo/titulo", binary_search_books}, /* [COMMIT 4] */
     {"Historico de emprestimos do usuario", user_history},   /* [COMMIT 5] */
+    {"Emprestimos em atraso e multas", list_overdue},        /* [COMMIT 6] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 
