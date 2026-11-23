@@ -2,6 +2,7 @@
  * storage.c - Estado da biblioteca em memoria.
  *
  * [COMMIT 1 - ALOCACAO DINAMICA]    vetores dinamicos com malloc/realloc/free.
+ * [COMMIT 8 - MENU E DOCUMENTACAO]  validacao de ano.
  */
 #include <stdlib.h>
 #include <string.h>
@@ -83,7 +84,9 @@ static int valid_text(const char *s) {
 int lib_add_book(Library *lib, const char *title, const char *author, int year, int quantity) {
     Book b;
     int rc;
-    if (!valid_text(title) || !valid_text(author) || quantity < 0) return LIB_ERR_INVALID;
+    /* [COMMIT 8] ano e quantidade tambem sao validados */
+    if (!valid_text(title) || !valid_text(author) || quantity < 0 || year < 0 || year > 9999)
+        return LIB_ERR_INVALID;
     book_init(&b, lib->next_book_id, title, author, year, quantity);
     rc = lib_push_book(lib, &b);
     return rc < 0 ? rc : b.id;

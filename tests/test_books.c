@@ -36,6 +36,8 @@ static void test_dynamic_arrays(void) {
     assert(lib.n_books == 100 && lib.cap_books >= 100);
     assert(lib_add_book(&lib, "", "Autor", 2000, 1) == LIB_ERR_INVALID);
     assert(lib_add_book(&lib, "A|B", "Autor", 2000, 1) == LIB_ERR_INVALID);
+    assert(lib_add_book(&lib, "A", "Autor", -5, 1) == LIB_ERR_INVALID);    /* [COMMIT 8] */
+    assert(lib_add_book(&lib, "A", "Autor", 2000, -1) == LIB_ERR_INVALID);
     lib_free(&lib);
     assert(lib.books == NULL && lib.n_books == 0 && lib.cap_books == 0);
 }

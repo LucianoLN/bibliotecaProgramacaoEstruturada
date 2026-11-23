@@ -10,6 +10,7 @@
  * [COMMIT 5 - HISTORICO]            historico de emprestimos por usuario.
  * [COMMIT 6 - ATRASOS E MULTA]      datas informadas, prazo, multa e atrasos.
  * [COMMIT 7 - RELATORIO DE DESEMPENHO] opcao que gera o relatorio.
+ * [COMMIT 8 - MENU E DOCUMENTACAO]  menu agrupado com resumo do acervo.
  */
 #include <stdio.h>
 #include <string.h>
@@ -355,28 +356,30 @@ static void export_txt(Library *lib) {
 /* ---------- Menu ---------- */
 
 typedef struct MenuItem {
+    const char *section;            /* [COMMIT 8] titulo do grupo, ou NULL */
     const char *label;
     void (*run)(Library *lib);
 } MenuItem;
 
-/* [COMMIT 1] Menu em tabela: cada funcionalidade nova e uma linha aqui. */
+/* [COMMIT 1] Menu em tabela: cada funcionalidade e uma linha aqui.
+ * [COMMIT 8] Agrupado por assunto; a numeracao sai da posicao na tabela. */
 static const MenuItem MENU[] = {
-    {"Cadastrar livro", add_book},
-    {"Listar livros", list_books},
-    {"Buscar livro por titulo/autor (sequencial)", search_books},
-    {"Cadastrar usuario", add_user},
-    {"Listar usuarios", list_users},
-    {"Buscar usuario por matricula", find_user},
-    {"Registrar emprestimo", lend_book},
-    {"Registrar devolucao", return_book},
-    {"Listar emprestimos", list_loans},
-    {"Salvar dados (.bin)", save_now},
-    {"Exportar dados para texto (.txt)", export_txt},       /* [COMMIT 2] */
-    {"Ordenar acervo (Insertion/Selection Sort)", sort_books}, /* [COMMIT 3] */
-    {"Busca binaria por codigo/titulo", binary_search_books}, /* [COMMIT 4] */
-    {"Historico de emprestimos do usuario", user_history},   /* [COMMIT 5] */
-    {"Emprestimos em atraso e multas", list_overdue},        /* [COMMIT 6] */
-    {"Relatorio de desempenho", performance_report},         /* [COMMIT 7] */
+    {"Acervo", "Cadastrar livro", add_book},
+    {NULL, "Listar livros", list_books},
+    {NULL, "Buscar livro por titulo/autor (sequencial)", search_books},
+    {NULL, "Buscar livro por codigo/titulo (binaria)", binary_search_books}, /* [COMMIT 4] */
+    {NULL, "Ordenar acervo (Insertion/Selection Sort)", sort_books},         /* [COMMIT 3] */
+    {"Usuarios", "Cadastrar usuario", add_user},
+    {NULL, "Listar usuarios", list_users},
+    {NULL, "Buscar usuario por matricula", find_user},
+    {NULL, "Historico de emprestimos do usuario", user_history},             /* [COMMIT 5] */
+    {"Emprestimos", "Registrar emprestimo", lend_book},
+    {NULL, "Registrar devolucao", return_book},
+    {NULL, "Listar emprestimos", list_loans},
+    {NULL, "Emprestimos em atraso e multas", list_overdue},                  /* [COMMIT 6] */
+    {"Dados e relatorios", "Salvar dados (.bin)", save_now},                 /* [COMMIT 2] */
+    {NULL, "Exportar dados para texto (.txt)", export_txt},                  /* [COMMIT 2] */
+    {NULL, "Relatorio de desempenho", performance_report},                   /* [COMMIT 7] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 
@@ -384,9 +387,15 @@ void cli_run(Library *lib) {
     char buf[32];
     int choice, i;
     for (;;) {
-        printf("\n== SGB - Biblioteca Universitaria ==\n");
-        for (i = 0; i < MENU_LEN; i++) printf("%2d) %s\n", i + 1, MENU[i].label);
-        printf(" 0) Sair\n");
+        printf("\n========== SGB - Biblioteca Universitaria ==========\n");
+        printf("%lu livro(s) | %lu usuario(s) | %lu emprestimo(s)\n",
+               (unsigned long)lib->n_books, (unsigned long)lib->n_users,
+               (unsigned long)lib->n_loans);
+        for (i = 0; i < MENU_LEN; i++) {
+            if (MENU[i].section) printf("\n[%s]\n", MENU[i].section);
+            printf("  %2d) %s\n", i + 1, MENU[i].label);
+        }
+        printf("\n   0) Sair (salva automaticamente)\n");
         if (!read_line("Escolha: ", buf, sizeof buf)) break;   /* EOF: sai salvando */
         if (!parse_int(buf, &choice) || choice < 0 || choice > MENU_LEN) {
             printf("Opcao invalida.\n");
