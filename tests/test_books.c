@@ -7,11 +7,13 @@
  *                                   texto ida e volta e formato da Parte 1.
  * [COMMIT 2 - ARQUIVOS BINARIOS]    binario ida e volta e arquivo invalido.
  * [COMMIT 3 - ORDENACAO]            Insertion e Selection Sort.
+ * [COMMIT 4 - BUSCA BINARIA]        binaria confere com a sequencial.
  */
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include "persist.h"
+#include "search.h"
 #include "sort.h"
 #include "util.h"
 
@@ -139,8 +141,28 @@ static void test_sorting(void) {
     assert(!sort_is_sorted(a, 7, book_cmp_title));
 }
 
+/* [COMMIT 4] Binaria acha tudo que a sequencial acha, e nada a mais,
+ * em vetores de tamanho 0 a 40 (pares e impares, primeiro e ultimo). */
+static void test_binary_search(void) {
+    Book v[40];
+    char title[16];
+    int n, i;
+    for (n = 0; n <= 40; n++) {
+        for (i = 0; i < n; i++) {
+            snprintf(title, sizeof title, "t%03d", i);
+            book_init(&v[i], i * 2 + 1, title, "x", 2000, 1);   /* codigos impares */
+        }
+        for (i = 0; i <= 2 * n + 1; i++) {
+            snprintf(title, sizeof title, "T%03d", i);
+            assert(search_bin_id(v, (size_t)n, i) == search_seq_id(v, (size_t)n, i));
+            assert(search_bin_title(v, (size_t)n, title) == search_seq_title(v, (size_t)n, title));
+        }
+    }
+}
+
 int main(void) {
     test_sorting();
+    test_binary_search();
     test_dynamic_arrays();
     test_loans();
     test_text_files();

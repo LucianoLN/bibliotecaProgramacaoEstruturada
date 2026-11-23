@@ -6,11 +6,13 @@
  *                                   devolucoes e buscas sobre a Library dinamica.
  * [COMMIT 2 - ARQUIVOS BINARIOS]    salvar em .bin e exportar .txt.
  * [COMMIT 3 - ORDENACAO]            ordenar acervo por codigo ou titulo.
+ * [COMMIT 4 - BUSCA BINARIA]        busca binaria com garantia de ordenacao.
  */
 #include <stdio.h>
 #include <string.h>
 #include "cli.h"
 #include "persist.h"
+#include "search.h"
 #include "sort.h"
 #include "util.h"
 
@@ -135,6 +137,33 @@ static void sort_books(Library *lib) {
     list_books(lib);
 }
 
+/* [COMMIT 4] Busca binaria. Ela so funciona em vetor ordenado pelo mesmo
+ * campo, entao confere antes e, se preciso, ordena com Insertion Sort. */
+static void binary_search_books(Library *lib) {
+    char title[LINE_LEN];
+    int id = 0, idx;
+    BookCmp cmp = read_criterion();
+    if (!cmp) return;
+    if (cmp == book_cmp_id) {
+        if (!read_int("Codigo: ", &id)) return;
+    } else {
+        read_line("Titulo exato: ", title, sizeof title);
+    }
+    if (!sort_is_sorted(lib->books, lib->n_books, cmp)) {
+        sort_insertion(lib->books, lib->n_books, cmp);
+        printf("(acervo nao estava ordenado por %s; ordenado agora com Insertion Sort)\n",
+               cmp == book_cmp_id ? "codigo" : "titulo");
+    }
+    idx = cmp == book_cmp_id ? search_bin_id(lib->books, lib->n_books, id)
+                             : search_bin_title(lib->books, lib->n_books, title);
+    if (idx < 0) {
+        printf("Livro nao encontrado.\n");
+        return;
+    }
+    print_book_header();
+    print_book(&lib->books[idx]);
+}
+
 /* ---------- Usuarios ---------- */
 
 static void add_user(Library *lib) {
@@ -235,6 +264,7 @@ static const MenuItem MENU[] = {
     {"Salvar dados (.bin)", save_now},
     {"Exportar dados para texto (.txt)", export_txt},       /* [COMMIT 2] */
     {"Ordenar acervo (Insertion/Selection Sort)", sort_books}, /* [COMMIT 3] */
+    {"Busca binaria por codigo/titulo", binary_search_books}, /* [COMMIT 4] */
 };
 #define MENU_LEN ((int)(sizeof MENU / sizeof MENU[0]))
 
