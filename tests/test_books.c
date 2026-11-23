@@ -1,31 +1,92 @@
-// [COMMIT 4] Teste simples para storage
+/*
+ * test_books.c - Testes automaticos (assert) dos modulos, sem o menu.
+ * Rode com `make test` a partir da raiz do projeto.
+ *
+ * [PARTE 1]                         cadastro e persistencia de livros.
+ * [COMMIT 1 - ALOCACAO DINAMICA]    crescimento dos vetores, emprestimos,
+ *                                   texto ida e volta e formato da Parte 1.
+ */
+#include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include "storage.h"
+#include <string.h>
+#include "persist.h"
+#include "util.h"
+
+#define TMP "tests/tmp_"
+
+static void remove_tmp_files(void) {
+    remove(TMP "livros.txt");
+    remove(TMP "usuarios.txt");
+    remove(TMP "emprestimos.txt");
+}
+
+/* [COMMIT 1] 100 livros forcam varios realloc (capacidade 8, 16, ..., 128). */
+static void test_dynamic_arrays(void) {
+    Library lib;
+    int i;
+    lib_init(&lib);
+    for (i = 1; i <= 100; i++) assert(lib_add_book(&lib, "Livro", "Autor", 2000, 1) == i);
+    assert(lib.n_books == 100 && lib.cap_books >= 100);
+    assert(lib_add_book(&lib, "", "Autor", 2000, 1) == LIB_ERR_INVALID);
+    assert(lib_add_book(&lib, "A|B", "Autor", 2000, 1) == LIB_ERR_INVALID);
+    lib_free(&lib);
+    assert(lib.books == NULL && lib.n_books == 0 && lib.cap_books == 0);
+}
+
+static void test_loans(void) {
+    Library lib;
+    time_t today = date_today();
+    lib_init(&lib);
+    assert(lib_add_book(&lib, "C", "Kernighan", 1978, 1) == 1);
+    assert(lib_add_user(&lib, 10, "Ana", "CC") == 0);
+    assert(lib_add_user(&lib, 10, "Bia", "CC") == LIB_ERR_DUPLICATE);
+    assert(lib_lend(&lib, 99, 1, today) == LIB_ERR_NO_USER);
+    assert(lib_lend(&lib, 10, 99, today) == LIB_ERR_NO_BOOK);
+    assert(lib_lend(&lib, 10, 1, today) == 1);
+    assert(lib_find_book(&lib, 1)->quantity == 0);
+    assert(lib_lend(&lib, 10, 1, today) == LIB_ERR_UNAVAILABLE);
+    assert(lib_return(&lib, 10, 1, today) == 0);
+    assert(lib_find_book(&lib, 1)->quantity == 1);
+    assert(lib_return(&lib, 10, 1, today) == LIB_ERR_NO_LOAN);
+    lib_free(&lib);
+}
+
+static void test_text_files(void) {
+    Library lib, back;
+    FILE *f;
+    lib_init(&lib);
+    lib_init(&back);
+    lib_add_book(&lib, "Dom Casmurro", "Machado de Assis", 1899, 2);
+    lib_add_user(&lib, 10, "Ana", "CC");
+    lib_lend(&lib, 10, 1, date_today());
+
+    assert(persist_save_txt(&lib, TMP) == 0);
+    assert(persist_load_txt(&back, TMP) == 3);
+    assert(back.n_books == 1 && back.books[0].quantity == 1);
+    assert(back.loans[0].loan_date == lib.loans[0].loan_date && back.loans[0].return_date == 0);
+    assert(back.next_book_id == 2 && back.next_loan_id == 2);
+
+    /* livros.txt da Parte 1: id|ano|titulo|autor, sem quantidade. */
+    remove_tmp_files();
+    f = fopen(TMP "livros.txt", "w");
+    assert(f);
+    fprintf(f, "7|1949|1984|George Orwell\nlinha quebrada\n");
+    fclose(f);
+    assert(persist_load_txt(&back, TMP) == 1);
+    assert(back.books[0].id == 7 && back.books[0].quantity == 1 && back.next_book_id == 8);
+    assert(strcmp(back.books[0].title, "1984") == 0);
+
+    remove_tmp_files();
+    assert(persist_load_txt(&back, TMP) == PERSIST_NO_FILE);
+    assert(back.n_books == 1);              /* falha na carga nao apaga o que havia */
+    lib_free(&lib);
+    lib_free(&back);
+}
 
 int main(void) {
-    // adicionar livros
-    storage_add_book("Livro A", "Autor X", 2001);
-    storage_add_book("Livro B", "Autor Y", 1999);
-
-    printf("Lista atual:\n");
-    storage_list_books();
-
-    // salvar
-    if (storage_save("tests_out.txt") != 0) {
-        printf("Falha ao salvar\n");
-        return 1;
-    }
-
-    // limpar e carregar
-    storage_free();
-    if (storage_load("tests_out.txt") != 0) {
-        printf("Falha ao carregar\n");
-        return 1;
-    }
-
-    printf("Lista após reload:\n");
-    storage_list_books();
-    storage_free();
+    test_dynamic_arrays();
+    test_loans();
+    test_text_files();
+    printf("Todos os testes passaram.\n");
     return 0;
 }

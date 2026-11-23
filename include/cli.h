@@ -1,8 +1,15 @@
-// [COMMIT 2] Interface do CLI
+/*
+ * cli.h - Menu interativo no terminal.
+ *
+ * [PARTE 1]                         cli_run.
+ * [COMMIT 1 - ALOCACAO DINAMICA]    recebe a Library em vez de usar globais.
+ */
 #ifndef CLI_H
 #define CLI_H
 
-// [COMMIT 2] Executa o laço do CLI
-void cli_run(void);
+#include "storage.h"
 
-#endif // CLI_H
+/* Executa o menu ate o usuario escolher sair (ou a entrada acabar). */
+void cli_run(Library *lib);
+
+#endif /* CLI_H */

@@ -1,26 +1,31 @@
+# Makefile do SGB. Requer gcc e make (Linux, macOS ou MSYS2/MinGW no Windows).
+# [PARTE 1]                       all/run/clean.
+# [COMMIT 1 - ALOCACAO DINAMICA]  -std=c99, alvo test corrigido.
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude
+CFLAGS = -Wall -Wextra -std=c99 -Iinclude
 SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:.c=.o)
+HDRS = $(wildcard include/*.h)
 TARGET = biblioteca
+TEST_BIN = tests/run_tests
 
-.PHONY: all clean run
+.PHONY: all clean run test
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS)
 
-%.o: %.c
+src/%.o: src/%.c $(HDRS)
 	$(CC) $(CFLAGS) -c $< -o $@
-
-
-clean:
-	-rm -f $(OBJS) $(TARGET)
 
 run: all
 	./$(TARGET)
 
-test: all
-	$(CC) $(CFLAGS) -Itests -o test/tests tests/test_books.c $(SRCS)
-	./test/tests
+# Testes com assert: todos os modulos menos o main.c do menu.
+test: $(filter-out src/main.o,$(OBJS)) tests/test_books.c
+	$(CC) $(CFLAGS) -o $(TEST_BIN) tests/test_books.c $(filter-out src/main.o,$(OBJS))
+	./$(TEST_BIN)
+
+clean:
+	-rm -f $(OBJS) $(TARGET) $(TARGET).exe $(TEST_BIN) $(TEST_BIN).exe
